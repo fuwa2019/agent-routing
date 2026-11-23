@@ -26,6 +26,14 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 
 ## 注意
 
-- 失败先看对应的 `.stderr.txt`。同一张卡失败一次后，先改 prompt 或升一档模型，不要原样重试。
+- 失败先看对应的 `.agent-runs/*.stderr.txt`，再检查 json 日志里的 `output_exists`。同一张卡失败一次后，先改 prompt 或升一档模型，不要原样重试。
 - 不要把凭据、`.env`、私人数据写进任务卡。
 - `ultra`、`max` 档和 Codex 的 `gpt-6.2-*` xhigh 成本高，只用于表里标明的场景。
+
+## agy 的权限坑（无头模式）
+
+- agy 在 `-p` 无头模式下默认权限策略是 `request-review`。不在白名单里的 shell 命令无法弹窗确认，会被自动拒绝，整次运行没有输出：退出码是 0，但交付物不存在，stderr 里有 `auto-denied`。
+- `dispatch.py` 给 read 卡自动挂上会话级白名单（`--settings templates/agy-readonly-settings.json`）。不改用户的全局 agy 设置，也不用 `--dangerously-skip-permissions`。
+- 写 agy 任务卡时，要在卡里注明只能用白名单里的命令（cd、pwd、ls、cat、head、tail、wc、grep、rg、shasum、sha256sum、git status/log/diff/show/rev-parse），避免 `find`、`sed`、`python`、`$(...)` 和反引号，这些会触发精确匹配然后被拒。确实需要别的只读命令时，加进 `templates/agy-readonly-settings.json`，不要临时绕过。
+- agy 卡失败时先看 `.agent-runs/*.stderr.txt`，再检查 `output_exists`。
+- agy 的 write 模式（`accept-edits`）在无头状态下跑 shell 命令同样会被拒；write 卡只适合不需要 shell 命令的改动。

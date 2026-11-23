@@ -65,6 +65,7 @@ python3 ~/Workspace/_agents/dispatch.py run .agent-runs/cards/T1.md .agent-runs/
 - 每次运行写一份 `.agent-runs/<时间>-<id>.json`（模型、effort、cwd、git HEAD、退出码、耗时）和对应的 stderr。
 - `depends` 里前置卡的交付物不存在时拒绝运行；`--parallel` 最多允许一张 write 卡。
 - Codex 写代码时填 `worktree`，脚本自动建 `agent/<id>` 分支的 worktree，主工作区不动；合并由 Claude 审过后做。
+- agy 无头模式（`-p`）默认权限是 `request-review`，不在白名单里的 shell 命令会被自动拒绝，整次运行没有输出（退出码 0，交付物不存在，stderr 有 `auto-denied`）。`dispatch.py` 给 read 卡自动加 `--settings templates/agy-readonly-settings.json`（只读命令白名单，会话级，不改全局设置）。需要别的只读命令就加进这个文件。write 模式（accept-edits）无头跑 shell 命令同样会被拒。
 - agy 的 read 模式用 `--mode plan`，write 模式用 `--mode accept-edits`；Codex 对应 `read-only` / `workspace-write` 沙箱；Claude 对应 `plan` / `acceptEdits`。
 
 ## 验证记录
@@ -73,6 +74,7 @@ python3 ~/Workspace/_agents/dispatch.py run .agent-runs/cards/T1.md .agent-runs/
 - `agy gemini-3.8-flash-low` 只读：通过
 - `codex gpt-6.1-terra medium` 只读：通过
 - Codex 写模式加自动 worktree：通过，主工作区未改，`.agent-runs/` 已加入 exclude
+- agy plan 模式加只读白名单：`shasum`、`cd`、`&&`、管道组成的复合命令都能执行；不加白名单时 27 秒退出、没有输出
 - `gpt-6-luna low`：没有调用工具，直接回复无法读取，所以杂活默认用 medium
 
 ## 许可

@@ -24,6 +24,9 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "templates" / "task-card.md"
 EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
 TOOLS = {"codex", "agy", "claude"}
+# agy 无头模式默认 request-review，任何 shell 命令都无法弹窗确认而被自动拒绝，整次运行无输出。
+# read 卡挂一份只读命令白名单（会话级，不改用户全局设置）。
+AGY_READ_SETTINGS = HERE / "templates" / "agy-readonly-settings.json"
 
 COMMON_RULES = """[通用约束]
 - 工作目录：{cwd}。若其中有 AGENTS.md 或 CLAUDE.md，先读并遵守；它们优先于本任务卡。
@@ -141,6 +144,8 @@ def build(card: Path, meta: dict, body: str, dry: bool) -> tuple[list[str], Path
     elif tool == "agy":
         cmd = ["agy", "-p", prompt, "--model", model, "--output-format", "text",
                "--mode", "plan" if mode == "read" else "accept-edits"]
+        if mode == "read" and AGY_READ_SETTINGS.exists():
+            cmd += ["--settings", str(AGY_READ_SETTINGS)]
         if effort and not model.rsplit("-", 1)[-1] in EFFORTS:
             cmd += ["--effort", effort]
     else:  # claude
