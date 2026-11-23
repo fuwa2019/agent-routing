@@ -1,1 +1,32 @@
-{"permissions":{"allow":["command(cd)","command(pwd)","command(ls)","command(cat)","command(head)","command(tail)","command(wc)","command(grep)","command(rg)","command(shasum)","command(sha256sum)","command(git status)","command(git log)","command(git diff)","command(git show)","command(git rev-parse)"],"deny":["command(rm)","command(mv)","command(sed -i)","command(git push)","command(git commit)","command(git checkout)","command(ssh)","command(scp)"]}}
+{
+  "permissions": {
+    "allow": [
+      "command(cd)",
+      "command(pwd)",
+      "command(ls)",
+      "command(cat)",
+      "command(head)",
+      "command(tail)",
+      "command(wc)",
+      "command(grep)",
+      "command(shasum)",
+      "command(sha256sum)",
+      "command(git status)",
+      "command(git rev-parse)"
+    ],
+    "deny": [
+      "command(rm)",
+      "command(mv)",
+      "command(sed -i)",
+      "command(rg)",
+      "command(git diff)",
+      "command(git log)",
+      "command(git show)",
+      "command(git push)",
+      "command(git commit)",
+      "command(git checkout)",
+      "command(ssh)",
+      "command(scp)"
+    ]
+  }
+}

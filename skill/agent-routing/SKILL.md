@@ -34,6 +34,6 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 
 - agy 在 `-p` 无头模式下默认权限策略是 `request-review`。不在白名单里的 shell 命令无法弹窗确认，会被自动拒绝，整次运行没有输出：退出码是 0，但交付物不存在，stderr 里有 `auto-denied`。
 - `dispatch.py` 给 read 卡自动挂上会话级白名单（`--settings templates/agy-readonly-settings.json`）。不改用户的全局 agy 设置，也不用 `--dangerously-skip-permissions`。
-- 写 agy 任务卡时，要在卡里注明只能用白名单里的命令（cd、pwd、ls、cat、head、tail、wc、grep、rg、shasum、sha256sum、git status/log/diff/show/rev-parse），避免 `find`、`sed`、`python`、`$(...)` 和反引号，这些会触发精确匹配然后被拒。确实需要别的只读命令时，加进 `templates/agy-readonly-settings.json`，不要临时绕过。
+- 写 agy 任务卡时，要在卡里注明只能用白名单里的命令（cd、pwd、ls、cat、head、tail、wc、grep、shasum、sha256sum、git status、git rev-parse），避免 `find`、`sed`、`python`、`$(...)` 和反引号，这些会触发精确匹配然后被拒。`rg` 和 `git diff/log/show` 被明确拒绝：它们带 `--pre`、`--output`、`--ext-diff`、`--textconv` 等参数能执行外部程序或写文件，而白名单只按命令前缀匹配，拦不住参数。看历史或 diff 的活交给 Codex 只读卡或由 Claude 自己做。新增命令前先确认它没有能执行命令或写文件的参数，再加进 `templates/agy-readonly-settings.json`；白名单只管命令名、不管路径，cwd 之外的文件仍可被读到。
 - agy 卡失败时先看 `.agent-runs/*.stderr.txt`，再检查 `output_exists`。
 - agy 的 write 模式（`accept-edits`）在无头状态下跑 shell 命令同样会被拒；write 卡只适合不需要 shell 命令的改动。
