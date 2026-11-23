@@ -38,4 +38,4 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 - agy 卡失败时先看 `.agent-runs/*.stderr.txt`，再检查 `output_exists`。
 - agy 的 write 模式（`accept-edits`）在无头状态下跑 shell 命令同样会被拒；write 卡只适合不需要 shell 命令的改动。
 - 白名单按命令前缀匹配，不是沙箱：deny 里补了 `rg --pre`、`git diff --output`、`--ext-diff`、`--textconv`、`git -c` 和常见凭据路径，但按参数匹配并不完备。读卡里不要放敏感目录；根本办法是把 read 模式的 agy 放进只读沙箱。
-- 派发新会话或子 agent 时，effort 不能高于当前会话，指定前先确认当前会话的 effort。
+- 派发新会话或子 agent 时，effort 要显式指定并核对实际生效值；遇到“effort 不能超过当前窗口”的提示，不要想当然，以实际报错为准。
