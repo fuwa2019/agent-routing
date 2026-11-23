@@ -26,7 +26,27 @@
       "command(git commit)",
       "command(git checkout)",
       "command(ssh)",
-      "command(scp)"
+      "command(scp)",
+      "command(rg --pre)",
+      "command(rg --pre-glob)",
+      "command(rg --search-zip)",
+      "command(rg -z)",
+      "command(git diff --output)",
+      "command(git log --output)",
+      "command(git show --output)",
+      "command(git diff --ext-diff)",
+      "command(git diff --textconv)",
+      "command(git log --ext-diff)",
+      "command(git show --ext-diff)",
+      "command(git -c)",
+      "command(cat ~/.ssh)",
+      "command(cat ~/.aws)",
+      "command(cat ~/.config)",
+      "command(cat .env)",
+      "command(grep ~/.ssh)",
+      "command(grep ~/.aws)",
+      "command(head ~/.ssh)",
+      "command(tail ~/.ssh)"
     ]
   }
 }
