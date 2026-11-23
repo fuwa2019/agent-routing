@@ -39,3 +39,14 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 - agy 的 write 模式（`accept-edits`）在无头状态下跑 shell 命令同样会被拒；write 卡只适合不需要 shell 命令的改动。
 - 白名单按命令前缀匹配，不是沙箱：deny 里补了 `rg --pre`、`git diff --output`、`--ext-diff`、`--textconv`、`git -c` 和常见凭据路径，但按参数匹配并不完备。读卡里不要放敏感目录；根本办法是把 read 模式的 agy 放进只读沙箱。
 - 派发新会话或子 agent 时，effort 要显式指定并核对实际生效值；遇到“effort 不能超过当前窗口”的提示，不要想当然，以实际报错为准。
+- 每张 agy 卡的正文第一条都要写：“只用读文件的工具读取 inputs 里的文件（图片直接读取查看），不要执行 shell 命令、不要列目录。”inputs 逐个列文件，不列目录。2026-11-23 实验三的核对卡漏了这句，第一次运行 73 秒就被拒了，没有任何产出，dispatch 却打印“失败 exit=0”。
+- agy 无头模式也会拒绝读取 cwd 之外的文件：stderr 显示 `"read_file" permission ... auto-denied`。inputs 里不要写 `../` 路径，要读的文件（包括截图）先复制到卡的 cwd 下，例如 `.agent-runs/shots/`。
+- 只看截图、扫描件的核对卡用 `gemini-4-neon-high`，不要用 Flash。
+
+## 课程作业、非 git 目录、本地数据库（2026-11-23 数据库实验三的教训）
+
+- 非 git 目录也能派卡：dispatch 会给 codex 自动加 `--skip-git-repo-check`。这时不要填 `worktree`，write 卡只允许新建或修改卡里点名的文件；收口时没有 `git diff`，由 Claude 直接读文件、自己编译运行来验收。
+- Codex 的 `workspace-write` 沙箱连不上 Docker socket（colima），连本机容器数据库的验证可能做不了或只做了一部分。凡是要连本地数据库的卡，都以 Claude 收口时亲自跑的结果为准，Codex 报告里的“验证通过”只当线索。
+- 卡里写清楚要模仿哪个现有文件的写法（例如“连接配置照 `../实验二/FinanceApp.java` 写成常量”）。不写的话，Codex 会按自己的习惯改成从环境变量读密码，和课程示例、往次实验的写法对不上，收口时还得再改。
+- 测试库口令也不写进卡正文。写“连接信息见 `<项目里的说明文件>`”，并把那个文件列进 inputs。
+- 课程作业同时遵守 `coursework-project-assistant`：agent 产出的代码和文字，Claude 要按老师手册的口径收口（术语、文件名、截图说明）；报告由 Claude 写，agy 只做“是否覆盖模板每一项、事实是否和代码及截图一致”的核对。
