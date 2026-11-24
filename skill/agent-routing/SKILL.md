@@ -9,8 +9,9 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 
 ## 步骤
 
-1. **判断要不要拆。** 几次工具调用就能完成的事直接做，不派 agent。
-2. **拆任务。** 按 ROUTING.md 的“任务类型 → 模型”表给每个子任务定 tool、model、effort、mode。写代码类任务按标准流水线：契约 → 代码地图 → 实现 → 审查 + 一致性核对 → 收口。契约和收口由你自己做，不写成卡。
+1. **判断要不要拆。** 几次工具调用就能完成的事直接做，不派 agent。写代码只派接口已经定死、和页面无关、成块的模块；几十行的改动、修审查发现的问题、要和页面来回对接口的，自己做（派活本身有成本：写卡、读 diff、重跑检查）。
+   - 大方案（架构、数据怎么存、长期绑定哪个服务、系统整体怎么改）先走 ROUTING.md 的“大方案流水线”：自己出一份，同时用 `dispatch.py new <路径> --kind plan` 让 Gemini 独立出一份，卡里只放用户原话和必要背景，不放你的草稿和倾向。合成稿写明一致的、采纳的、不采纳的和理由，再交用户拍板。
+2. **拆任务。** 按 ROUTING.md 的“任务类型 → 模型”表给每个子任务定 tool、model、effort、mode。写代码类任务按标准流水线：契约 → 代码地图 → 实现 → 审查 + 一致性核对 → 收口。契约和收口由你自己做，不写成卡。审查卡用 `--kind review`，按“阻断 / 建议”分级，最多两轮，两轮后还有阻断交用户决定。
 3. **写任务卡。** 放到项目的 `.agent-runs/cards/<id>.md`，可以用 `python3 ~/Workspace/_agents/dispatch.py new <路径> --id <id>` 生成。每张卡必须写明：
    - `inputs`：具体文件或目录，不写“相关文件”
    - `output`：一个文件路径，正文写清交付物的章节和表格结构
@@ -22,7 +23,8 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
    - 互不依赖、只读的卡用 `--parallel`
    - 同一组文件同一时间只派一个写手
 6. **验收。** 读每张卡的交付物和 `.agent-runs/*.json`，确认退出码为 0、交付物存在。对 write 卡看 worktree 的 `git diff`，自己跑项目要求的检查。agent 的报告只当线索，你确认过才算数。
-7. **收口。** 在 worktree 分支上审过之后再合并，提交按项目约定进行。按项目规则写 journal、更新 handoff。向用户汇报时写清每张卡的结论、哪些通过了你的验证、哪些没有。
+7. **收口。** 在 worktree 分支上审过之后再合并，提交按项目约定进行。按项目规则写 journal、更新 handoff。向用户汇报时先说做成了什么、用户会看到什么变化，再写清每张卡的结论、哪些通过了你的验证、哪些没有；不贴命令和排查过程。
+8. **把教训变成检查。** 这次踩的坑能用脚本判断的，加进 `dispatch.py` 的校验或项目的测试；做不成检查才写进本文件，并写明原因。已经有检查守着的文字规则，只留一句并写明是哪个检查。
 
 ## 注意
 
@@ -39,8 +41,9 @@ description: 把任务拆给 Claude、Codex CLI、agy（Gemini）多个 agent �
 - agy 的 write 模式（`accept-edits`）在无头状态下跑 shell 命令同样会被拒；write 卡只适合不需要 shell 命令的改动。
 - 白名单按命令前缀匹配，不是沙箱：deny 里补了 `rg --pre`、`git diff --output`、`--ext-diff`、`--textconv`、`git -c` 和常见凭据路径，但按参数匹配并不完备。读卡里不要放敏感目录；根本办法是把 read 模式的 agy 放进只读沙箱。
 - 派发新会话或子 agent 时，effort 要显式指定并核对实际生效值；遇到“effort 不能超过当前窗口”的提示，不要想当然，以实际报错为准。
-- 每张 agy 卡的正文第一条都要写：“只用读文件的工具读取 inputs 里的文件（图片直接读取查看），不要执行 shell 命令、不要列目录。”inputs 逐个列文件，不列目录。2026-11-23 实验三的核对卡漏了这句，第一次运行 73 秒就被拒了，没有任何产出，dispatch 却打印“失败 exit=0”。
-- agy 无头模式也会拒绝读取 cwd 之外的文件：stderr 显示 `"read_file" permission ... auto-denied`。inputs 里不要写 `../` 路径，要读的文件（包括截图）先复制到卡的 cwd 下，例如 `.agent-runs/shots/`。
+- “只用读文件的工具、不执行 shell、不列目录”这句由 `dispatch.py` 自动加在每张 agy 卡的 prompt 最前面（`AGY_PREAMBLE`），不用再手写。
+- agy 卡的 inputs 必须是 cwd 内已存在的文件，列目录或写 `../` 路径会被 `dispatch.py` 的校验拒绝。要读的文件（包括截图）先复制到卡的 cwd 下，例如 `.agent-runs/shots/`。
+- 退出码 0 但交付物不存在时，dispatch 会直接提示，stderr 里有 `auto-denied` 也会点出来。
 - 只看截图、扫描件的核对卡用 `gemini-4-neon-high`，不要用 Flash。
 
 ## 课程作业、非 git 目录、本地数据库（2026-11-23 数据库实验三的教训）

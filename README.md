@@ -1,9 +1,9 @@
 # agent-routing：Claude Code 调度 Codex CLI 与 Gemini（agy）CLI
 
-这个仓库是一套多 agent 分工方案：由 **Claude Code** 负责拆任务、写任务卡和最终收口；**Codex CLI** 负责在代码库里实现、调试和做对抗式审查；**agy（Gemini）CLI** 负责长上下文阅读、整仓代码地图和一致性核对。仓库里包括：
+这个仓库是一套多 agent 分工方案：由 **Claude Code** 负责拆任务、写任务卡和最终收口；**Codex CLI** 负责在代码库里实现、调试和做对抗式审查；**agy（Gemini）CLI** 负责长上下文阅读、整仓代码地图、大方案的独立第二份、界面文案顾问和一致性核对。仓库里包括：
 
 - 分工规则、任务类型到模型的对照表（[ROUTING.md](ROUTING.md)）
-- 任务卡模板（[templates/task-card.md](templates/task-card.md)）
+- 任务卡模板：通用卡（[templates/task-card.md](templates/task-card.md)）、大方案独立第二份（[templates/plan-card.md](templates/plan-card.md)）、分级审查（[templates/review-card.md](templates/review-card.md)）
 - 只用标准库的派发脚本，按任务卡调用 `codex exec` / `agy -p` / `claude -p`（[dispatch.py](dispatch.py)）
 - 给 Claude Code 用的 skill（[skill/agent-routing/SKILL.md](skill/agent-routing/SKILL.md)）
 
@@ -43,8 +43,9 @@ Copy-Item -Recurse "$HOME\Workspace\_agents\skill\agent-routing" "$HOME\.claude\
 # 列出本机可用模型
 python3 ~/Workspace/_agents/dispatch.py models
 
-# 从模板生成任务卡
+# 从模板生成任务卡（--kind plan 生成大方案卡，--kind review 生成审查卡）
 python3 ~/Workspace/_agents/dispatch.py new .agent-runs/cards/T1.md --id T1
+python3 ~/Workspace/_agents/dispatch.py new .agent-runs/cards/P1.md --id P1 --kind plan
 
 # 空跑：只打印命令和 prompt，不真正调用
 python3 ~/Workspace/_agents/dispatch.py run .agent-runs/cards/T1.md --dry-run
@@ -64,6 +65,7 @@ python3 ~/Workspace/_agents/dispatch.py run .agent-runs/cards/T1.md .agent-runs/
 - 任务卡和产出放在项目的 `.agent-runs/` 下。脚本会把它写进该仓库本地的 `.git/info/exclude`，不进提交；需要留档的结论由 Claude 写进项目文档或 journal。
 - 每次运行写一份 `.agent-runs/<时间>-<id>.json`（模型、effort、cwd、git HEAD、退出码、耗时）和对应的 stderr。
 - `depends` 里前置卡的交付物不存在时拒绝运行；`--parallel` 最多允许一张 write 卡。
+- agy 卡的 inputs 必须是 cwd 内已存在的文件，列目录或 `../` 路径会被拒绝；每张 agy 卡的 prompt 开头自动加上“只用读文件的工具、不执行 shell 命令”。
 - Codex 写代码时填 `worktree`，脚本自动建 `agent/<id>` 分支的 worktree，主工作区不动；合并由 Claude 审过后做。
 - agy 无头模式（`-p`）默认权限是 `request-review`，不在白名单里的 shell 命令会被自动拒绝，整次运行没有输出（退出码 0，交付物不存在，stderr 有 `auto-denied`）。`dispatch.py` 给 read 卡自动加 `--settings templates/agy-readonly-settings.json`（只读命令白名单，会话级，不改全局设置）。`rg`、`git diff/log/show` 被明确拒绝（带参数可执行外部程序或写文件）；新增命令前先确认它没有这类参数。白名单只管命令名不管路径。write 模式（accept-edits）无头跑 shell 命令同样会被拒。
 - agy 的 read 模式用 `--mode plan`，write 模式用 `--mode accept-edits`；Codex 对应 `read-only` / `workspace-write` 沙箱；Claude 对应 `plan` / `acceptEdits`。
