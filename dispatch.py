@@ -198,7 +198,7 @@ def run_one(card: Path, dry: bool) -> int:
     if is_git(run_cwd):
         ensure_excluded(run_cwd)
     start = dt.datetime.now()
-    eff_tag = f" ({effort})" if effort else ""
+    eff_tag = f" ({meta['effort']})" if meta.get("effort") else ""
     print(f"[{meta['id']}] {meta['tool']} {meta['model']}{eff_tag} 开始 {start:%H:%M:%S}")
     try:
         r = subprocess.run(cmd, cwd=run_cwd, capture_output=True, text=True,
