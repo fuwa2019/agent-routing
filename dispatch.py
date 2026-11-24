@@ -2,7 +2,7 @@
 """按任务卡把任务派给 Codex / agy(Gemini) / Claude CLI。
 
 用法:
-  python3 dispatch.py new <路径.md> [--id T1]   从模板生成任务卡
+  python3 dispatch.py new <路径.md> [--id T1] [--kind task|plan|review]  从模板生成任务卡
   python3 dispatch.py run <卡.md> [<卡.md> ...] [--dry-run] [--parallel]
   python3 dispatch.py models                     列出本机可用模型
 
@@ -22,6 +22,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE / "templates" / "task-card.md"
+KINDS = {"task": TEMPLATE, "plan": HERE / "templates" / "plan-card.md",
+         "review": HERE / "templates" / "review-card.md"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max", "ultra"}
 TOOLS = {"codex", "agy", "claude"}
 # agy 无头模式默认 request-review，任何 shell 命令都无法弹窗确认而被自动拒绝，整次运行无输出。
@@ -36,6 +38,9 @@ COMMON_RULES = """[通用约束]
 - 用中文写结论；引用代码写 file:line；不确定的事实标出依据而不是猜测。
 - 你的最后一条消息就是交付物，会被原样保存到 {output}。
 """
+# agy 无头模式跑 shell 命令、读 cwd 之外的文件都会被 auto-denied，整次运行没有产出。
+# 这条要求以前写在 skill 里靠人记，现在由脚本给每张 agy 卡自动加上。
+AGY_PREAMBLE = "[agy 必读] 只用读文件的工具读取下面 [输入] 里列出的文件（图片直接读取查看），不要执行 shell 命令、不要列目录。\n"
 MODE_TEXT = {
     "read": "只读。不要创建、修改或删除任何文件。",
     "write": "可写。只改本任务涉及的文件；不 git commit、不切换分支、不 push。最后一条消息列出改了哪些文件、做了哪些验证、还剩什么。",
@@ -101,6 +106,16 @@ def validate(card: Path, meta: dict) -> list[str]:
         errs.append(f"effort 必须是 {sorted(EFFORTS)}")
     if meta.get("worktree") and meta.get("tool") != "codex":
         errs.append("worktree 只用于 codex")
+    cwd = (card.parent / meta.get("cwd", ".")).resolve()
+    for i in split_list(meta.get("inputs", "")) if meta.get("tool") == "agy" else []:
+        ip = (cwd / i).resolve()
+        if not ip.exists():
+            errs.append(f"输入不存在: {i}")
+        else:
+            if ip.is_dir():
+                errs.append(f"agy 卡的 inputs 要逐个列文件，不能列目录: {i}")
+            if not ip.is_relative_to(cwd):
+                errs.append(f"agy 无头模式读不到 cwd 之外的文件，先复制进 cwd: {i}")
     for dep in split_list(meta.get("depends", "")):
         dpath = (card.parent / dep).resolve()
         if not dpath.exists():
@@ -127,6 +142,8 @@ def build(card: Path, meta: dict, body: str, dry: bool) -> tuple[list[str], Path
     output = (cwd / meta["output"]).resolve()
     inputs = split_list(meta.get("inputs", ""))
     prompt = COMMON_RULES.format(cwd=run_cwd, mode_text=MODE_TEXT[meta["mode"]], output=output)
+    if meta["tool"] == "agy":
+        prompt = AGY_PREAMBLE + prompt
     if inputs:
         prompt += "\n[输入]\n" + "\n".join(f"- {cwd / i}" for i in inputs) + "\n"
     prompt += f"\n[任务 {meta['id']}]\n{body}\n"
@@ -203,7 +220,11 @@ def run_one(card: Path, dry: bool) -> int:
     }
     (log_dir / f"{stamp}.json").write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
     status = "完成" if code == 0 and output.exists() else "失败"
-    print(f"[{meta['id']}] {status} exit={code} {log['seconds']}s → {output}")
+    why = ""
+    if code == 0 and not output.exists():
+        why = "（退出码 0 但交付物不存在"
+        why += "，stderr 里有 auto-denied：命令或读文件被拒）" if "auto-denied" in (err or "") else "）"
+    print(f"[{meta['id']}] {status} exit={code}{why} {log['seconds']}s → {output}")
     return code if code else (0 if output.exists() else 1)
 
 
@@ -230,6 +251,8 @@ def main() -> None:
     n = sub.add_parser("new")
     n.add_argument("path")
     n.add_argument("--id", default="T1")
+    n.add_argument("--kind", choices=sorted(KINDS), default="task",
+                   help="task 通用卡；plan 大方案独立第二份；review 分级代码审查")
     r = sub.add_parser("run")
     r.add_argument("cards", nargs="+")
     r.add_argument("--dry-run", action="store_true")
@@ -244,7 +267,7 @@ def main() -> None:
         if p.exists():
             sys.exit(f"{p} 已存在，不覆盖")
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(TEMPLATE.read_text(encoding="utf-8").replace("id: T1", f"id: {a.id}", 1)
+        p.write_text(KINDS[a.kind].read_text(encoding="utf-8").replace("id: T1", f"id: {a.id}", 1)
                      .replace("out/T1.md", f"out/{a.id}.md", 1), encoding="utf-8")
         print(f"已生成 {p}")
     else:

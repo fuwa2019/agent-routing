@@ -6,7 +6,7 @@ effort:                      # codex/claude 用：low|medium|high|xhigh|max；ag
 mode: read                   # read（只读）| write（可改文件）
 cwd: .                       # 相对任务卡所在目录，或绝对路径
 worktree:                    # 可选：codex 写代码时的独立 worktree 路径（相对 cwd），不存在会自动创建
-inputs: AGENTS.md, docs/     # 逗号分隔，相对 cwd
+inputs: AGENTS.md, docs/design.md  # 逗号分隔，相对 cwd；agy 卡只能列 cwd 内的文件，不能列目录
 output: .agent-runs/out/T1.md  # 交付物路径（相对 cwd），保存最后一条消息
 depends:                     # 可选：逗号分隔的前置任务卡路径；其 output 不存在则拒绝运行
 timeout: 3600                # 秒
